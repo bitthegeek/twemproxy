@@ -360,6 +360,52 @@ req_recv_next(struct context *ctx, struct conn *conn, bool alloc)
     return msg;
 }
 
+// NOTE: This might be temporary; grafted from branch twemproxy_auth_and_select
+static struct mbuf *
+get_mbuf(struct msg *msg) {
+    struct mbuf *mbuf = STAILQ_LAST(&msg->mhdr, mbuf, next);
+    if (mbuf == NULL || mbuf_full(mbuf)) { // TODO: mbuff_full not yet implemented here
+        mbuf = mbuf_get();
+        if (mbuf == NULL) {
+            return NULL;
+        }
+
+        mbuf_insert(&msg->mhdr, mbuf);
+        msg->pos = mbuf->pos;
+    }
+    // ASSERT(mbuf->end - mbuf->last > 0);
+    return mbuf;
+}
+
+// NOTE: This might be temporary; grafted from branch twemproxy_auth_and_select
+static void
+reply(struct context *ctx, struct conn *conn, struct msg *smsg, char *_msg) {
+    struct msg *msg = msg_get(conn, true, conn->redis);
+    if (msg == NULL) {
+        conn->err = errno;
+        return;
+    }
+
+    struct mbuf *mbuf = get_mbuf(msg);
+    if (mbuf == NULL) {
+        msg_put(msg);
+        return;
+    }
+
+    smsg->peer = msg;
+    msg->peer = smsg;
+    msg->request = 0;
+
+    int n = (int)strlen(_msg);
+    memcpy(mbuf->last, _msg, (size_t)n);
+    mbuf->last += n;
+    msg->mlen += (uint32_t)n;
+    smsg->done = 1;
+
+    event_add_out(ctx->evb, conn);
+    conn->enqueue_outq(ctx, conn, smsg);
+}
+
 static bool
 req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
 {
@@ -371,6 +417,16 @@ req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
                   conn->sd);
         req_put(msg);
         return true;
+    }
+
+    /*
+     *  Handle "ping\r\n"
+     */
+    if (msg->quit) {
+        log_debug(LOG_INFO, "filter ping req %"PRIu64" from c %d", msg-<id,
+                conn->sd); // some logging for your convenience
+        reply(ctx, conn, msg, "+PONG\r\n");
+        return true; // bye!
     }
 
     /*
