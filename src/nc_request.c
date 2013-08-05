@@ -364,7 +364,7 @@ req_recv_next(struct context *ctx, struct conn *conn, bool alloc)
 static struct mbuf *
 get_mbuf(struct msg *msg) {
     struct mbuf *mbuf = STAILQ_LAST(&msg->mhdr, mbuf, next);
-    if (mbuf == NULL || mbuf_full(mbuf)) { // TODO: mbuff_full not yet implemented here
+    if (mbuf == NULL || mbuf_full(mbuf)) {
         mbuf = mbuf_get();
         if (mbuf == NULL) {
             return NULL;
@@ -373,7 +373,6 @@ get_mbuf(struct msg *msg) {
         mbuf_insert(&msg->mhdr, mbuf);
         msg->pos = mbuf->pos;
     }
-    // ASSERT(mbuf->end - mbuf->last > 0);
     return mbuf;
 }
 
