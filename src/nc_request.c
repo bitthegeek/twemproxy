@@ -421,7 +421,7 @@ req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
     /*
      *  Handle "ping\r\n"
      */
-    if (msg->quit) {
+    if (msg->type == MSG_REQ_REDIS_PING) {
         log_debug(LOG_INFO, "filter ping req %"PRIu64" from c %d", msg-<id,
                 conn->sd); // some logging for your convenience
         reply(ctx, conn, msg, "+PONG\r\n");

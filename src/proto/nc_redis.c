@@ -101,6 +101,7 @@ redis_arg1(struct msg *r)
     case MSG_REQ_REDIS_ZRANK:
     case MSG_REQ_REDIS_ZREVRANK:
     case MSG_REQ_REDIS_ZSCORE:
+    case MSG_REQ_REDIS_PING:
         return true;
 
     default:
